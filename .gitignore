@@ -1,0 +1,23 @@
+# Python derleme dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Veri setleri (GitHub'a yüklenmez, boyutu büyüktür ve KVKK riski vardır)
+data/
+data/raw/
+data/processed/
+
+# Modeller (Eğer 100MB'dan büyükse yüklenmez, şimdilik ignore edelim)
+models/
+*.pkl
+
+# Editör ayarları
+.vscode/
+.idea/
+*.ipynb_checkpoints/
+
+# Sanal ortam
+venv/
+env/
+.env

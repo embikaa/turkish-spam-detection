@@ -30,15 +30,15 @@ class SpamHeuristics:
     def generate_weak_label(self, structural_features):
         is_short, is_generic, has_digits, is_long, is_caps_lock = structural_features
         
-        # KURAL 1: Çok kısa ve jenerikse veya FULL BÜYÜK HARFSE -> SPAM (1)
+        
         if (is_short and is_generic) or is_caps_lock:
             return 1
         
-        # KURAL 2: Uzunsa veya rakam içeriyorsa -> GERÇEK (0)
+       
         if is_long or has_digits:
             return 0
             
-        # KURAL 3: Sadece kısaysa -> Yarı Spam (1 diyelim risk almamak için)
+       
         if is_short:
             return 1
             

@@ -1,15 +1,18 @@
-# Core ML libraries - using latest versions for Python 3.14 compatibility
+# Core
 pandas>=2.2.0
 numpy>=1.26.0
 scikit-learn>=1.4.0
 torch>=2.2.0
 transformers>=4.37.0
-imbalanced-learn>=0.12.0
 nltk>=3.8.1
+imbalanced-learn>=0.12.0
 joblib>=1.3.2
+tqdm
 
-# Utilities
-tqdm>=4.66.0
+# Boosting models
+xgboost>=2.0.0
+lightgbm>=4.0.0
+# catboost>=1.2.0  # Uncomment if compatible with your Python version
 
 # Visualization
 matplotlib>=3.8.0

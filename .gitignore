@@ -54,3 +54,4 @@ Thumbs.db
 htmlcov/
 .tox/models/latest
 models/multi_model_results.json
+models/latest

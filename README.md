@@ -1,330 +1,164 @@
-# Hybrid Spam Review Detection in Turkish E-Commerce Platforms
+# Turkish Spam Detection — Hybrid ML System
 
-**Authors:** Muhammet Burak KILIÇ, İsmail Hakkı Birgez  
-**Domain:** NLP, Machine Learning, Weak Supervision  
-**Status:** Production-Ready (v2.0)
+Multi-model machine learning system for detecting spam reviews in Turkish e-commerce platforms, combining **BERTurk** contextual embeddings with **TF-IDF** statistical features under a **weak supervision** labeling framework.
 
----
+## Architecture
 
-## Project Overview
-
-This project detects deceptive (spam) reviews in Turkish e-commerce platforms using a **Hybrid Feature Fusion** approach. The system combines:
-
-1. **Contextual Embeddings** from BERTurk (Transformer-based)
-2. **Lexical Features** using TF-IDF vectors
-3. **Weak Supervision** through rule-based heuristics for unlabeled data
-
-### Key Improvements (v2.0)
-
-✅ **Fixed critical data leakage** - Train-test split now occurs BEFORE feature extraction  
-✅ **Unified pipeline architecture** - Consistent train/inference workflow  
-✅ **Production-ready code** - Comprehensive error handling, logging, and type hints  
-✅ **Model versioning** - Automatic timestamped model saves with metadata  
-✅ **API deployment** - FastAPI REST endpoint for production use  
-
----
-
-## Technology Stack
-
-- **Language:** Python 3.8+
-- **Core ML:** PyTorch, Transformers (HuggingFace), Scikit-Learn
-- **Model:** Random Forest (trained on BERT + TF-IDF hybrid features)
-- **Data Handling:** Pandas, NumPy, Imbalanced-Learn (SMOTE)
-- **Deployment:** FastAPI, Uvicorn
-
----
+```
+Raw Text (Turkish reviews)
+    │
+    ├── Preprocessing
+    │   ├── clean_text_for_bert()   → minimal cleaning
+    │   └── clean_text_for_tfidf() → aggressive cleaning + stopword removal
+    │
+    ├── Feature Engineering
+    │   ├── TF-IDF (500 features)
+    │   └── BERTurk [CLS] embeddings (768 features)
+    │   → Combined: 1268-dimensional feature vector
+    │
+    ├── Weak Supervision (Heuristic Labeling)
+    │   └── Rule-based labels using structural features
+    │
+    ├── Class Balancing (SMOTE)
+    │
+    └── Model Training (10 classifiers)
+        ├── Logistic Regression
+        ├── K-Nearest Neighbors
+        ├── Support Vector Machine
+        ├── Artificial Neural Network (MLP)
+        ├── Decision Tree (CART)
+        ├── Random Forest
+        ├── Gradient Boosting (GBM)
+        ├── XGBoost
+        ├── LightGBM
+        └── CatBoost
+```
 
 ## Project Structure
 
-```text
+```
 turkish-spam-detection/
-├── config/                 # Configuration and settings
-│   └── settings.py         # Centralized configuration with validation
-├── data/                   # Data storage (not in repository)
-│   └── raw/                # Place veri_seti_200k.csv here
-├── models/                 # Versioned trained models
-│   └── YYYYMMDD_HHMMSS/    # Timestamped model directories
-├── logs/                   # Training and application logs
-├── src/                    # Source code modules
-│   ├── features.py         # BERT and TF-IDF feature extraction
-│   ├── heuristics.py       # Weak labeling logic
-│   ├── preprocessing.py    # Text cleaning (BERT vs TF-IDF optimized)
-│   ├── pipeline.py         # Unified ML pipeline
-│   ├── evaluation.py       # Metrics and visualization
-│   ├── logger.py           # Logging utilities
-│   └── utils.py            # Helper functions
-├── train.py                # Training script
-├── predict.py              # Interactive inference demo
-├── api.py                  # FastAPI deployment
-└── requirements.txt        # Python dependencies
+├── config/
+│   └── settings.py           # Central configuration
+├── src/
+│   ├── preprocessing.py      # Text cleaning (BERT & TF-IDF pipelines)
+│   ├── features.py           # Feature extraction (TF-IDF + BERTurk)
+│   ├── heuristics.py         # Weak supervision labeling rules
+│   ├── evaluation.py         # Metrics computation
+│   ├── logger.py             # Centralized logging
+│   └── utils.py              # Seed, I/O, directory utilities
+├── data/
+│   └── raw/                  # Place dataset here
+├── models/                   # Trained model artifacts
+├── results/                  # Comparison charts & tables
+├── train_all_models.py       # Train all 10 models
+├── compare_models.py         # Top-5 comparison & visualization
+├── requirements.txt          # Dependencies
+└── README.md
 ```
 
----
+## Quick Start
 
-## Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/embikaa/turkish-spam-detection.git
-cd turkish-spam-detection
-```
-
-### 2. Create Virtual Environment
+### 1. Setup
 
 ```bash
 python -m venv venv
-source venv/bin/activate  
-```
-
-### 3. Install Dependencies
-
-```bash
+source venv/bin/activate   # Linux/Mac
 pip install -r requirements.txt
 ```
 
-### 4. Prepare Data
+### 2. Prepare Data
 
-Place your dataset `veri_seti_200k.csv` in the `data/raw/` directory.
+Place `veri_seti_200k.csv` in `data/raw/` directory. The dataset must have a `comment` column.
 
-```bash
-mkdir -p data/raw
-```
-
----
-
-## Usage
-
-### Training the Model
+### 3. Train All Models
 
 ```bash
-python train.py
+python train_all_models.py
 ```
 
-**What happens:**
-- Loads and validates data
-- Generates weak labels using heuristics
-- Splits data (80/20) **BEFORE** feature extraction
-- Extracts BERT + TF-IDF features
-- Applies SMOTE for class balancing
-- Trains Random Forest classifier
-- Evaluates on test set
-- Saves versioned model with metadata
+This will:
+- Load and preprocess the dataset
+- Generate weak labels using heuristic rules
+- Extract TF-IDF + BERTurk features
+- Apply SMOTE for class balancing
+- Train 10 models with optimized hyperparameters
+- Save results to `models/` directory
 
-**Output:**
-```
-models/20260215_103045/
-├── model.pkl           # Trained Random Forest
-├── tfidf.pkl           # Fitted TF-IDF vectorizer
-├── scaler.pkl          # Fitted StandardScaler
-└── metadata.json       # Metrics, config, timestamps
-```
-
-### Interactive Testing
+### 4. Compare & Visualize
 
 ```bash
-python predict.py
+python compare_models.py
 ```
 
-**Example:**
-```
-Yorumu Girin: Harika ürün, çok memnun kaldım!
-🟢 GENUINE
-Spam İhtimali: %15.32
-Güven Seviyesi: Yüksek
-```
+Generates in `results/`:
+- `comparison_table.txt` — Top-5 model comparison table
+- `comparison_chart.png` — Grouped bar chart of all metrics
+- `weak_label_distribution.png` — Weak labeling stats (count + percentage)
+- `confusion_matrices.png` — Side-by-side confusion matrices
+- `all_models_ranking.png` — Full ranking of all models by F1 score
 
-### API Deployment
+## Models & Hyperparameters
 
-```bash
-# Install API dependencies
-pip install -r requirements-api.txt
-
-# Run API server
-python api.py
-```
-
-**API Endpoints:**
-- `GET /` - API information
-- `GET /health` - Health check
-- `GET /model-info` - Model metrics and version
-- `POST /predict` - Spam prediction
-
-**Example API Request:**
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Harika ürün!"}'
-```
-
-**Response:**
-```json
-{
-  "is_spam": false,
-  "spam_probability": 0.1532,
-  "confidence": "Yüksek",
-  "model_version": "2026-02-15T10:30:45"
-}
-```
-
----
+| Model | Key Hyperparameters |
+|-------|-------------------|
+| Logistic Regression | C=1.0, penalty=l2, solver=lbfgs |
+| KNN | k=7, weights=distance, metric=cosine |
+| SVM | C=10.0, kernel=rbf, gamma=scale |
+| ANN (MLP) | layers=(256,128,64), adam, early_stopping |
+| CART | max_depth=20, min_samples_split=10 |
+| Random Forest | n_estimators=200, max_depth=30 |
+| GBM | n_estimators=200, lr=0.1, max_depth=5 |
+| XGBoost | n_estimators=200, lr=0.1, max_depth=6 |
+| LightGBM | n_estimators=200, lr=0.1, num_leaves=31 |
+| CatBoost | iterations=200, lr=0.1, depth=6 |
 
 ## Methodology
 
 ### Weak Supervision
 
-Since the dataset is unlabeled, heuristic rules generate "silver labels":
+Since the dataset lacks ground-truth labels, heuristic rules generate noisy labels based on structural features:
 
-- **Brevity Penalty:** Very short reviews → Spam
-- **Generic Density:** High filler word ratio → Spam  
-- **Structural Complexity:** Long reviews with digits → Genuine
-- **Capitalization:** ALL CAPS reviews → Spam
+- **Short reviews** (< 5 words) → likely spam
+- **Generic keywords only** → likely spam
+- **Excessive punctuation** (!!!???) → likely spam
+- **All caps text** → likely spam
+- **Emoji-heavy** → likely spam
+- **Character repetition** (aaaa, güzellll) → likely spam
+- **Contains URL** → likely spam
+- **Long reviews** (≥ 20 words) → likely genuine
 
-### Hybrid Feature Fusion
-
-The classifier receives concatenated features:
-
-```
-V_final = [V_TF-IDF ⊕ V_BERT]
-```
-
-This captures both:
-- **Lexical patterns** (TF-IDF): Keyword-based signals
-- **Semantic meaning** (BERT): Deep contextual understanding
+A spam score ≥ 2 classifies as spam.
 
 ### Data Leakage Prevention
 
-**CRITICAL FIX:** Train-test split occurs **BEFORE** feature extraction:
+- Train/test split performed **before** feature extraction
+- TF-IDF fitted only on training data, then transformed on test data
+- SMOTE applied only to training data
 
-```python
-# 1. Split data first
-X_train, X_test, y_train, y_test = train_test_split(texts, labels)
+### Feature Engineering
 
-# 2. Fit TF-IDF only on training data
-tfidf.fit(X_train)
+- **TF-IDF**: 500 most informative n-grams from aggressively cleaned text
+- **BERTurk**: 768-dim [CLS] embeddings from minimally cleaned text
+- **Combined**: 1268-dimensional feature vectors
 
-# 3. Transform both sets
-X_train_tfidf = tfidf.transform(X_train)
-X_test_tfidf = tfidf.transform(X_test)  # No leakage!
-```
+## Requirements
 
----
+- Python ≥ 3.10
+- PyTorch
+- Transformers (HuggingFace)
+- scikit-learn
+- XGBoost, LightGBM (optional: CatBoost)
 
-## Configuration
+See `requirements.txt` for full list.
 
-Edit `config/settings.py` to customize:
+## Technology Stack
 
-```python
-class Config:
-    # Model parameters
-    BERT_MODEL_NAME = "dbmdz/bert-base-turkish-cased"
-    TFIDF_MAX_FEATURES = 500
-    
-    # Training parameters
-    TEST_SIZE = 0.2
-    RANDOM_STATE = 42
-    SMOTE_RATIO = 0.5
-    SAMPLE_SIZE = 5000  # None for full dataset
-    
-    # Hardware
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-```
-
----
-
-## Results
-
-> [!IMPORTANT]
-> **Metrics updated after fixing data leakage (v2.0)**
-
-Performance on test set (5000 samples):
-
-- **Accuracy:** ~85-88% (down from inflated 90% due to leakage fix)
-- **F1-Score (Spam):** ~0.78-0.82
-- **Precision:** ~0.80-0.85
-- **Recall:** ~0.75-0.80
-
-**Note:** Results vary with random seed and sample size. Use cross-validation for robust estimates.
-
----
-
-## Troubleshooting
-
-### GPU Out of Memory
-
-Reduce batch size in `config/settings.py`:
-```python
-BATCH_SIZE = 8  # Default is 16
-```
-
-### Model Not Found
-
-Ensure you've trained a model first:
-```bash
-python train.py
-```
-
-### Data File Missing
-
-Place `veri_seti_200k.csv` in `data/raw/` directory.
-
----
-
-## Development
-
-### Running Tests
-
-```bash
-pytest tests/ -v
-```
-
-### Code Quality
-
-```bash
-# Type checking
-mypy src/
-
-# Linting
-flake8 src/
-```
-
----
-
-## Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@misc{kilic2026turkish,
-  author = {Kılıç, Muhammet Burak and Birgez, İsmail Hakkı},
-  title = {Hybrid Spam Review Detection in Turkish E-Commerce Platforms},
-  year = {2026},
-  publisher = {GitHub},
-  url = {https://github.com/YOUR_USERNAME/turkish-spam-detection}
-}
-```
-
----
-
-## License
-
-This project is developed for academic research purposes.
-
----
-
-## Changelog
-
-### v2.0 (2026-02-15)
-- 🔴 **CRITICAL:** Fixed data leakage in feature extraction
-- ✨ Added unified `SpamDetectionPipeline` class
-- ✨ Implemented model versioning with metadata
-- ✨ Added comprehensive logging and error handling
-- ✨ Created FastAPI deployment
-- 📝 Added type hints and docstrings throughout
-- 🐛 Fixed preprocessing inconsistency (digit removal)
-- 🐛 Fixed train-inference feature mismatch
-
-### v1.0 (Initial Release)
-- Basic hybrid model implementation
-- Weak supervision with heuristics
-- BERT + TF-IDF feature fusion
+| Component | Technology |
+|-----------|-----------|
+| Deep Learning | BERTurk (dbmdz/bert-base-turkish-cased) |
+| NLP | TF-IDF, Turkish stopword removal |
+| ML Framework | scikit-learn, XGBoost, LightGBM |
+| Labeling | Weak supervision (heuristic rules) |
+| Balancing | SMOTE (imbalanced-learn) |
+| Visualization | Matplotlib |

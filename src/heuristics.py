@@ -1,11 +1,16 @@
 import re
 import numpy as np
+from typing import List, Tuple
+
 
 class SpamHeuristics:
-    def __init__(self, generic_keywords):
+   
+    def __init__(self, generic_keywords: List[str]):
+        
         self.generic_keywords = generic_keywords
 
-    def extract_structural_features(self, text):
+    def extract_structural_features(self, text: str) -> List[int]:
+        
         text_str = str(text)
         text_lower = text_str.lower()
         words = re.findall(r'\w+', text_lower)
@@ -27,18 +32,16 @@ class SpamHeuristics:
         
         return [is_short, is_generic, has_digits, is_long, is_caps_lock]
 
-    def generate_weak_label(self, structural_features):
-        is_short, is_generic, has_digits, is_long, is_caps_lock = structural_features
+    def generate_weak_label(self, structural_features: List[int]) -> int:
         
+        is_short, is_generic, has_digits, is_long, is_caps_lock = structural_features
         
         if (is_short and is_generic) or is_caps_lock:
             return 1
         
-       
         if is_long or has_digits:
             return 0
             
-       
         if is_short:
             return 1
             

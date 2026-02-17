@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam Tespit Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b1120;
+            --card: #151d30;
+            --card-hover: #1c2742;
+            --border: #1e2d4a;
+            --primary: #6366f1;
+            --primary-glow: rgba(99,102,241,.25);
+            --accent: #a855f7;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --radius: .875rem;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+        /* ── scrollbar ── */
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:var(--bg)}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+        /* ── header ── */
+        .topbar{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(168,85,247,.1));border-bottom:1px solid var(--border);padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+        .topbar h1{font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .topbar .subtitle{color:var(--muted);font-size:.875rem}
+
+        /* ── layout ── */
+        .page{display:flex;min-height:calc(100vh - 65px)}
+
+        /* ── sidebar ── */
+        .sidebar{width:260px;background:var(--card);border-right:1px solid var(--border);padding:1.5rem 1rem;overflow-y:auto;flex-shrink:0}
+        .sidebar h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.75rem}
+        .model-btn{display:flex;align-items:center;gap:.5rem;width:100%;padding:.7rem 1rem;background:transparent;border:1px solid transparent;border-radius:.5rem;color:var(--text);font-size:.875rem;cursor:pointer;transition:all .2s;text-align:left;font-family:inherit;margin-bottom:.25rem}
+        .model-btn:hover{background:var(--card-hover);border-color:var(--border)}
+        .model-btn.active{background:rgba(99,102,241,.12);border-color:var(--primary);color:#818cf8}
+        .model-btn .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .model-btn .score{margin-left:auto;font-weight:700;font-size:.8rem;color:var(--muted)}
+        .model-btn.active .score{color:#818cf8}
+
+        /* ── main ── */
+        .main{flex:1;padding:2rem;overflow-y:auto}
+
+        /* ── cards ── */
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;transition:border-color .2s}
+        .card:hover{border-color:rgba(99,102,241,.4)}
+        .card-head{display:flex;align-items:center;gap:.5rem;margin-bottom:1.25rem;font-size:1.1rem;font-weight:700}
+        .card-head::before{content:'';width:3px;height:1.25rem;background:linear-gradient(var(--primary),var(--accent));border-radius:2px}
+
+        /* ── kpi row ── */
+        .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem}
+        .kpi{background:var(--bg);padding:1.25rem;border-radius:.75rem;border:1px solid var(--border);text-align:center}
+        .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+        .kpi-val{font-size:1.75rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+        /* ── grid ── */
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+        @media(max-width:1024px){.grid-2{grid-template-columns:1fr}}
+        .chart-wrap{background:var(--bg);border-radius:.75rem;padding:1rem}
+
+        /* ── predict section ── */
+        .predict-area{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+        @media(max-width:900px){.predict-area{grid-template-columns:1fr}}
+        textarea{width:100%;padding:1rem;background:var(--bg);border:1.5px solid var(--border);border-radius:.75rem;color:var(--text);font-size:.95rem;font-family:inherit;resize:vertical;min-height:130px;transition:border-color .2s}
+        textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+        .btn{padding:.85rem 1.5rem;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;border:none;border-radius:.65rem;font-size:.95rem;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .2s;font-family:inherit}
+        .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px var(--primary-glow)}
+        .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+        /* ── result box ── */
+        .result-box{padding:1.25rem;border-radius:.75rem;border:2px solid}
+        .result-box.spam{background:rgba(239,68,68,.08);border-color:var(--danger)}
+        .result-box.genuine{background:rgba(34,197,94,.08);border-color:var(--success)}
+        .result-box h3{font-size:1.2rem;margin-bottom:.75rem}
+        .result-details{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+        .detail{display:flex;justify-content:space-between;padding:.6rem .8rem;background:var(--bg);border-radius:.5rem;font-size:.875rem}
+
+        /* ── comparison table ── */
+        .tbl-wrap{overflow-x:auto;margin-top:1rem}
+        table{width:100%;border-collapse:collapse;font-size:.875rem}
+        th{text-align:left;padding:.75rem 1rem;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+        td{padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+        tr:hover td{background:rgba(99,102,241,.04)}
+        tr.highlight td{background:rgba(99,102,241,.08)}
+        .bar-cell{position:relative;min-width:100px}
+        .bar-bg{position:absolute;left:0;top:50%;transform:translateY(-50%);height:6px;border-radius:3px;transition:width .5s ease}
+
+        /* ── loading ── */
+        .spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* ── comparison chart card ── */
+        .full-width{grid-column:1/-1}
+
+        /* ── animate-in ── */
+        .fade{animation:fadeUp .5s ease-out}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    </style>
+</head>
+<body>
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div>
+            <h1>🛡️ Türkçe Spam Tespit Sistemi</h1>
+            <div class="subtitle">Multi-Model Comparison Dashboard — BERTurk + TF-IDF</div>
+        </div>
+        <div style="color:var(--muted);font-size:.8rem" id="versionInfo"></div>
+    </div>
+
+    <div class="page">
+        <!-- Sidebar — Model List -->
+        <div class="sidebar" id="sidebar">
+            <h3>Modeller</h3>
+            <div id="modelList"><div style="color:var(--muted);padding:1rem;font-size:.85rem">Yükleniyor…</div></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main" id="mainContent">
+            <!-- KPI Row -->
+            <div class="kpi-row fade" id="kpiRow">
+                <div class="kpi"><div class="kpi-label">Accuracy</div><div class="kpi-val" id="kAcc">—</div></div>
+                <div class="kpi"><div class="kpi-label">F1 Score</div><div class="kpi-val" id="kF1">—</div></div>
+                <div class="kpi"><div class="kpi-label">Precision</div><div class="kpi-val" id="kPrec">—</div></div>
+                <div class="kpi"><div class="kpi-label">Recall</div><div class="kpi-val" id="kRec">—</div></div>
+                <div class="kpi"><div class="kpi-label">ROC AUC</div><div class="kpi-val" id="kAuc">—</div></div>
+                <div class="kpi"><div class="kpi-label">Süre</div><div class="kpi-val" id="kTime">—</div></div>
+            </div>
+
+            <!-- Predict + Metrics -->
+            <div class="predict-area fade">
+                <!-- Predict Card -->
+                <div class="card">
+                    <div class="card-head">🔍 Yorum Testi</div>
+                    <form id="predForm">
+                        <textarea id="txt" placeholder="Yorumunuzu buraya yazın…"></textarea>
+                        <div style="margin-top:.75rem;display:flex;gap:.75rem;align-items:center">
+                            <button class="btn" type="submit" id="predBtn">Analiz Et</button>
+                            <span id="predSpinner" style="display:none"><span class="spinner"></span></span>
+                        </div>
+                    </form>
+                    <div id="predResult" style="margin-top:1rem"></div>
+                </div>
+
+                <!-- Metrics Bar Chart -->
+                <div class="card">
+                    <div class="card-head">📊 Metrik Karşılaştırma</div>
+                    <div class="chart-wrap"><canvas id="metricsBar"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Confusion + ROC -->
+            <div class="grid-2 fade">
+                <div class="card">
+                    <div class="card-head">🎯 Confusion Matrix</div>
+                    <div class="chart-wrap"><canvas id="cmChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-head">📈 Sınıf Dağılımı</div>
+                    <div class="chart-wrap"><canvas id="classChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Full Comparison Table -->
+            <div class="card fade">
+                <div class="card-head">🏆 Tüm Modellerin Karşılaştırması</div>
+                <div class="tbl-wrap" id="compTable"></div>
+            </div>
+
+            <!-- All-models comparison bar -->
+            <div class="card fade">
+                <div class="card-head">📊 Model Performans Grafiği</div>
+                <div class="chart-wrap"><canvas id="allModelsChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = '';
+    let DATA = null;      // full multi_model_results
+    let SELECTED = null;  // current model name
+
+    // ── Chart instances ──
+    let metricsBarChart, cmBarChart, classDonutChart, allModelsBarChart;
+
+    // ── Colours ──
+    const COLORS = ['#6366f1','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#ec4899','#14b8a6','#f97316','#8b5cf6'];
+    function modelColor(i){return COLORS[i % COLORS.length]}
+
+    // ── Boot ──
+    document.addEventListener('DOMContentLoaded', async ()=>{
+        try{
+            const r = await fetch(`${API}/model-info`);
+            DATA = await r.json();
+        }catch(e){
+            document.getElementById('modelList').innerHTML='<div style="color:var(--danger);padding:1rem">API bağlantı hatası</div>';
+            return;
+        }
+
+        if(DATA.version) document.getElementById('versionInfo').textContent = `v${DATA.version}`;
+
+        // Build sidebar buttons
+        const models = DATA.models || {};
+        const names = Object.keys(models);
+        let html = '';
+        names.sort((a,b)=> (models[b].f1_score||0) - (models[a].f1_score||0));
+        names.forEach((name,i)=>{
+            const m = models[name];
+            const f1 = m.f1_score != null ? (m.f1_score*100).toFixed(1)+'%' : 'ERR';
+            html += `<button class="model-btn" data-model="${name}"><span class="dot" style="background:${modelColor(i)}"></span>${name}<span class="score">${f1}</span></button>`;
+        });
+        document.getElementById('modelList').innerHTML = html;
+
+        // Event listeners
+        document.querySelectorAll('.model-btn').forEach(btn=>{
+            btn.addEventListener('click',()=> selectModel(btn.dataset.model));
+        });
+
+        // Init charts
+        initCharts();
+
+        // Build comparison table & all-models chart
+        buildComparisonTable(models);
+        buildAllModelsChart(models);
+
+        // Select first model
+        if(names.length) selectModel(names[0]);
+    });
+
+    // ── Select Model ──
+    function selectModel(name){
+        SELECTED = name;
+        const m = DATA.models[name];
+        if(!m || m.error) return;
+
+        // Highlight sidebar
+        document.querySelectorAll('.model-btn').forEach(b=>{
+            b.classList.toggle('active', b.dataset.model === name);
+        });
+
+        // KPIs
+        document.getElementById('kAcc').textContent = (m.accuracy*100).toFixed(2)+'%';
+        document.getElementById('kF1').textContent = (m.f1_score*100).toFixed(2)+'%';
+        document.getElementById('kPrec').textContent = (m.precision*100).toFixed(2)+'%';
+        document.getElementById('kRec').textContent = (m.recall*100).toFixed(2)+'%';
+        document.getElementById('kAuc').textContent = m.roc_auc != null ? (m.roc_auc*100).toFixed(2)+'%' : 'N/A';
+        document.getElementById('kTime').textContent = m.training_time != null ? m.training_time+'s' : '—';
+
+        // Metrics bar
+        metricsBarChart.data.datasets[0].data = [m.accuracy*100, m.f1_score*100, m.precision*100, m.recall*100, (m.roc_auc||0)*100];
+        metricsBarChart.update();
+
+        // Confusion matrix
+        if(m.confusion_matrix){
+            const cm = m.confusion_matrix;
+            cmBarChart.data.datasets[0].data = [cm[0][0], cm[0][1], cm[1][0], cm[1][1]];
+            cmBarChart.update();
+        }
+
+        // Class distribution
+        if(m.class_distribution){
+            classDonutChart.data.datasets[0].data = [m.class_distribution.Genuine||0, m.class_distribution.Spam||0];
+            classDonutChart.update();
+        }
+
+        // Highlight table row
+        document.querySelectorAll('#compTable tr').forEach(tr=>{
+            tr.classList.toggle('highlight', tr.dataset.model === name);
+        });
+    }
+
+    // ── Init Charts ──
+    function initCharts(){
+        const darkGrid = {color:'rgba(100,116,139,.15)'};
+        const tickColor = '#64748b';
+
+        metricsBarChart = new Chart(document.getElementById('metricsBar'),{
+            type:'bar',
+            data:{
+                labels:['Accuracy','F1','Precision','Recall','AUC'],
+                datasets:[{data:[0,0,0,0,0],backgroundColor:['#6366f1','#22c55e','#f59e0b','#a855f7','#06b6d4'],borderRadius:6}]
+            },
+            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{color:tickColor,callback:v=>v+'%'},grid:darkGrid},x:{ticks:{color:tickColor},grid:{display:false}}}}
+        });
+
+        cmBarChart = new Chart(document.getElementById('cmChart'),{
+            type:'bar',
+            data:{
+                labels:['True Neg','False Pos','False Neg','True Pos'],
+                datasets:[{data:[0,0,0,0],backgroundColor:['#22c55e','#ef4444','#ef4444','#22c55e'],borderRadius:6}]
+            },
+            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:tickColor},grid:darkGrid},x:{ticks:{color:tickColor,font:{size:10}},grid:{display:false}}}}
+        });
+
+        classDonutChart = new Chart(document.getElementById('classChart'),{
+            type:'doughnut',
+            data:{
+                labels:['Genuine','Spam'],
+                datasets:[{data:[0,0],backgroundColor:['#22c55e','#ef4444'],borderWidth:0}]
+            },
+            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:13}}}},cutout:'65%'}
+        });
+    }
+
+    // ── Comparison Table ──
+    function buildComparisonTable(models){
+        const names = Object.keys(models).sort((a,b)=>(models[b].f1_score||0)-(models[a].f1_score||0));
+        let html = '<table><thead><tr><th>#</th><th>Model</th><th>Accuracy</th><th>F1 Score</th><th>Precision</th><th>Recall</th><th>AUC</th><th>Süre</th></tr></thead><tbody>';
+        names.forEach((name,i)=>{
+            const m = models[name];
+            if(m.error){
+                html += `<tr data-model="${name}"><td>${i+1}</td><td>${name}</td><td colspan="6" style="color:var(--danger)">Hata: ${m.error}</td></tr>`;
+                return;
+            }
+            html += `<tr data-model="${name}" style="cursor:pointer" onclick="selectModel('${name}')">
+                <td>${i+1}</td>
+                <td><strong>${name}</strong></td>
+                <td>${(m.accuracy*100).toFixed(2)}%</td>
+                <td>${(m.f1_score*100).toFixed(2)}%</td>
+                <td>${(m.precision*100).toFixed(2)}%</td>
+                <td>${(m.recall*100).toFixed(2)}%</td>
+                <td>${m.roc_auc!=null?(m.roc_auc*100).toFixed(2)+'%':'N/A'}</td>
+                <td>${m.training_time!=null?m.training_time+'s':'—'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('compTable').innerHTML = html;
+    }
+
+    // ── All-models comparison chart ──
+    function buildAllModelsChart(models){
+        const names = Object.keys(models).filter(n=>!models[n].error).sort((a,b)=>(models[b].f1_score||0)-(models[a].f1_score||0));
+        const acc = names.map(n=>(models[n].accuracy*100));
+        const f1  = names.map(n=>(models[n].f1_score*100));
+        const prec= names.map(n=>(models[n].precision*100));
+        const rec = names.map(n=>(models[n].recall*100));
+
+        allModelsBarChart = new Chart(document.getElementById('allModelsChart'),{
+            type:'bar',
+            data:{
+                labels:names,
+                datasets:[
+                    {label:'Accuracy',data:acc,backgroundColor:'rgba(99,102,241,.7)',borderRadius:4},
+                    {label:'F1 Score',data:f1,backgroundColor:'rgba(34,197,94,.7)',borderRadius:4},
+                    {label:'Precision',data:prec,backgroundColor:'rgba(245,158,11,.7)',borderRadius:4},
+                    {label:'Recall',data:rec,backgroundColor:'rgba(168,85,247,.7)',borderRadius:4},
+                ]
+            },
+            options:{
+                responsive:true,maintainAspectRatio:true,
+                plugins:{legend:{labels:{color:'#94a3b8'}}},
+                scales:{
+                    y:{beginAtZero:true,max:100,ticks:{color:'#64748b',callback:v=>v+'%'},grid:{color:'rgba(100,116,139,.15)'}},
+                    x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}
+                }
+            }
+        });
+    }
+
+    // ── Prediction ──
+    document.getElementById('predForm').addEventListener('submit', async e=>{
+        e.preventDefault();
+        const text = document.getElementById('txt').value.trim();
+        if(!text) return;
+
+        document.getElementById('predBtn').disabled = true;
+        document.getElementById('predSpinner').style.display = 'inline';
+
+        try{
+            const r = await fetch(`${API}/predict`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+            const d = await r.json();
+
+            const cls = d.is_spam ? 'spam' : 'genuine';
+            const icon = d.is_spam ? '🔴 SPAM' : '🟢 GERÇEK';
+            document.getElementById('predResult').innerHTML = `
+                <div class="result-box ${cls}">
+                    <h3>${icon}</h3>
+                    <div class="result-details">
+                        <div class="detail"><span>Spam İhtimali</span><strong>${(d.spam_probability*100).toFixed(2)}%</strong></div>
+                        <div class="detail"><span>Güven</span><strong>${d.confidence}</strong></div>
+                    </div>
+                </div>`;
+        }catch(err){
+            document.getElementById('predResult').innerHTML = `<div style="color:var(--danger)">Hata: ${err.message}</div>`;
+        }finally{
+            document.getElementById('predBtn').disabled = false;
+            document.getElementById('predSpinner').style.display = 'none';
+        }
+    });
+    </script>
+</body>
+</html>

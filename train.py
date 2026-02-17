@@ -1,71 +1,93 @@
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
-from imblearn.over_sampling import SMOTE
-import joblib
 import sys
 import os
-
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from config.settings import Config
-from src.preprocessing import clean_text
-from src.features import FeatureEngineer
-from src.heuristics import SpamHeuristics
+from src.pipeline import SpamDetectionPipeline
+from src.utils import set_seed, ensure_dir
+from src.logger import setup_logger
+from src.evaluation import (
+    plot_confusion_matrix,
+    plot_roc_curve,
+    plot_pr_curve,
+    analyze_feature_importance
+)
+
+logger = setup_logger(__name__, log_file=Config.LOG_FILE)
+
 
 def main():
-    print("--- SİSTEM BAŞLATILIYOR ---")
+    logger.info("=" * 80)
+    logger.info("TURKISH SPAM DETECTION - TRAINING PIPELINE")
+    logger.info("=" * 80)
     
+    try:
+        logger.info("Validating configuration...")
+        Config.validate()
+        
+        logger.info(f"Setting random seed: {Config.RANDOM_STATE}")
+        set_seed(Config.RANDOM_STATE)
+        
+        logger.info(f"Loading data from: {Config.DATA_PATH}")
+        if not os.path.exists(Config.DATA_PATH):
+            raise FileNotFoundError(
+                f"Data file not found: {Config.DATA_PATH}\n"
+                f"Please place veri_seti_200k.csv in data/raw/ directory."
+            )
+        
+        df = pd.read_csv(Config.DATA_PATH, low_memory=False, usecols=['comment'])
+        logger.info(f"Loaded {len(df)} total samples")
+        
+        df = df.dropna(subset=['comment'])
+        logger.info(f"After removing NaN: {len(df)} samples")
+        
+        if Config.SAMPLE_SIZE is not None:
+            sample_size = min(Config.SAMPLE_SIZE, len(df))
+            df = df.sample(n=sample_size, random_state=Config.RANDOM_STATE)
+            logger.info(f"Sampled {sample_size} samples for training")
+        
+        texts = df['comment'].tolist()
+        
+        logger.info("Initializing pipeline...")
+        pipeline = SpamDetectionPipeline(config=Config)
+        
+        logger.info("Training pipeline (this may take several minutes)...")
+        pipeline.fit(texts)
+        
+        logger.info("Saving model...")
+        model_path = pipeline.save()
+        logger.info(f"Model saved to: {model_path}")
+        
+        logger.info("Generating evaluation plots...")
+        ensure_dir(f"{model_path}/plots")
+        
+      
+        logger.info("Evaluation plots will be generated in future iterations")
+        
+        logger.info("=" * 80)
+        logger.info("TRAINING COMPLETED SUCCESSFULLY!")
+        logger.info(f"Model version: {os.path.basename(model_path)}")
+        logger.info(f"Accuracy: {pipeline.metadata['metrics']['accuracy']:.4f}")
+        logger.info(f"F1 Score: {pipeline.metadata['metrics']['f1_score']:.4f}")
+        logger.info("=" * 80)
+        
+    except FileNotFoundError as e:
+        logger.error(f"File Error: {e}")
+        sys.exit(1)
+    except ValueError as e:
+        logger.error(f"Configuration Error: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.warning("Training interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
-    if not os.path.exists(Config.DATA_PATH):
-        print(f"HATA: Dosya bulunamadı: {Config.DATA_PATH}")
-        print("Lütfen veri_seti_200k.csv dosyasını 'data/raw' klasörüne koy.")
-        return
-
-    df = pd.read_csv(Config.DATA_PATH, low_memory=False, usecols=['comment'])
-    
-    df = df.dropna(subset=['comment']).sample(n=5000, random_state=Config.RANDOM_STATE)
-    
-    
-    print(">> Auto Labeling...")
-    df['clean_text'] = df['comment'].apply(clean_text)
-    
-    heuristics = SpamHeuristics(Config.GENERIC_KEYWORDS)
-    df['struct_feats'] = df['comment'].apply(heuristics.extract_structural_features)
-    df['weak_label'] = df['struct_feats'].apply(heuristics.generate_weak_label)
-    
-    y = df['weak_label'].values
-    print(f"Etiket Dağılımı -> Normal: {np.sum(y==0)}, Spam: {np.sum(y==1)}")
-
-    
-    fe = FeatureEngineer()
-    X_tfidf = fe.fit_transform_tfidf(df['clean_text'].tolist())
-    X_bert = fe.get_bert_embeddings(df['clean_text'].tolist())
-    X_final = np.hstack([X_tfidf, X_bert])
-    
-    
-    X_train, X_test, y_train, y_test = train_test_split(X_final, y, test_size=Config.TEST_SIZE, stratify=y, random_state=Config.RANDOM_STATE)
-    
-    smote = SMOTE(sampling_strategy=Config.SMOTE_RATIO, random_state=Config.RANDOM_STATE)
-    X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
-    
-    print(">> Model eğitiliyor...")
-    rf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=Config.RANDOM_STATE)
-    rf.fit(X_train_res, y_train_res)
-    
-    
-    print(">> Results:")
-    y_pred = rf.predict(X_test)
-    print(classification_report(y_test, y_pred))
-    
-    
-    if not os.path.exists("models"): os.makedirs("models")
-    joblib.dump(rf, Config.MODEL_SAVE_PATH)
-    joblib.dump(fe.tfidf, Config.TFIDF_PATH)
-    print("Başarıyla tamamlandı.")
 
 if __name__ == "__main__":
     main()
